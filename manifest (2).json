@@ -1,0 +1,19 @@
+{
+  "name": "タスクツリー",
+  "short_name": "TaskTree",
+  "description": "タスクを育てよう",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0ebe2",
+  "theme_color": "#3d7a52",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

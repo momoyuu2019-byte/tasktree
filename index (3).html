@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TaskTree">
+<meta name="theme-color" content="#3d7a52">
+<link rel="manifest" href="manifest.json">
+<title>TaskTree</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0ebe2; --card:#fffdf9; --surface:#faf8f4;
+  --border:#e8e2d8; --border2:#d4ccbe;
+  --doing:#3d7a52; --todo:#3058a0; --later:#a05828; --done:#7a7268;
+  --doing-bg:#edf6f0; --todo-bg:#edf2fb; --later-bg:#fbf2eb; --done-bg:#f2f0eb;
+  --doing-tape:rgba(160,210,170,.75); --todo-tape:rgba(160,185,230,.75); --later-tape:rgba(230,185,150,.75);
+  --tx:#1e1a14; --tx2:#3e3828; --tx3:#7a7060; --white:#fff;
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Noto Sans JP',sans-serif;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  max-width:480px;margin:0 auto;
+  padding-top:var(--safe-t);
+}
+
+/* ヘッダー */
+header{
+  flex-shrink:0;height:58px;
+  background:linear-gradient(180deg,#ede5d8,#e6ddd0);
+  border-bottom:2px solid var(--border2);
+  box-shadow:0 2px 8px rgba(60,40,20,.1);
+  display:flex;align-items:center;padding:0 14px;gap:10px;
+}
+.logo{display:flex;align-items:center;gap:8px;flex:1}
+.logo-icon{width:30px;height:30px;border-radius:8px;background:var(--doing);display:flex;align-items:center;justify-content:center;font-size:.9rem;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.logo-title{font-size:.95rem;font-weight:700;color:var(--tx)}
+.logo-sub{font-size:.5rem;color:var(--tx3);letter-spacing:1px;display:block}
+.add-btn{background:var(--doing);color:var(--white);border:none;border-radius:20px;padding:7px 14px;font-family:inherit;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(61,122,82,.3)}
+.add-btn:active{opacity:.8}
+
+/* インストールバナー */
+#ios-banner{
+  display:none;flex-shrink:0;
+  background:linear-gradient(135deg,#2d5e3d,#3d7a52);
+  color:var(--white);padding:10px 14px;
+  align-items:center;gap:10px;
+}
+#ios-banner.show{display:flex}
+.ib-text{flex:1;font-size:.75rem;line-height:1.5}
+.ib-title{font-weight:700;display:block}
+.ib-sub{opacity:.8;font-size:.68rem}
+.ib-close{background:none;border:none;color:rgba(255,255,255,.6);font-size:1.1rem;cursor:pointer;padding:4px}
+
+/* タブ */
+.tabs{
+  flex-shrink:0;height:48px;background:var(--surface);
+  border-bottom:1.5px solid var(--border);
+  display:flex;overflow-x:auto;scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex-shrink:0;padding:0 14px;
+  display:flex;align-items:center;gap:5px;
+  font-size:.76rem;font-weight:500;color:var(--tx3);
+  cursor:pointer;border-bottom:2.5px solid transparent;
+  white-space:nowrap;user-select:none;
+}
+.tab.active.t-doing{border-color:var(--doing);color:var(--doing);font-weight:700}
+.tab.active.t-todo{border-color:var(--todo);color:var(--todo);font-weight:700}
+.tab.active.t-later{border-color:var(--later);color:var(--later);font-weight:700}
+.tab.active.t-done{border-color:var(--done);color:var(--done);font-weight:700}
+.badge{min-width:17px;height:17px;padding:0 4px;border-radius:9px;font-size:.6rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.t-doing .badge{background:var(--doing-bg);color:var(--doing)}
+.t-todo  .badge{background:var(--todo-bg);color:var(--todo)}
+.t-later .badge{background:var(--later-bg);color:var(--later)}
+.t-done  .badge{background:var(--done-bg);color:var(--done)}
+
+/* ページ */
+.pages{flex:1;overflow:hidden;position:relative}
+.page{
+  position:absolute;inset:0;overflow-y:auto;
+  padding:12px 12px calc(24px + var(--safe-b));
+  display:none;flex-direction:column;gap:10px;
+  -webkit-overflow-scrolling:touch;
+}
+.page.active{display:flex}
+
+/* カード */
+.card{
+  position:relative;
+  background:var(--card);border:1px solid var(--border);
+  border-left:4px solid;border-radius:14px;
+  padding:14px 14px 12px;
+  box-shadow:0 2px 10px rgba(60,40,20,.09);
+  cursor:grab;user-select:none;touch-action:none;
+  animation:pop .25s cubic-bezier(.34,1.4,.64,1);
+}
+@keyframes pop{from{opacity:0;transform:translateY(-10px) scale(.95)}to{opacity:1;transform:none}}
+.card.cat-doing{border-left-color:var(--doing)}
+.card.cat-todo{border-left-color:var(--todo)}
+.card.cat-later{border-left-color:var(--later)}
+.card.cat-done{border-left-color:var(--done)}
+
+.tape{
+  position:absolute;top:-7px;left:18px;
+  width:40px;height:14px;border-radius:2px;
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.2) 0,rgba(255,255,255,.2) 3px,transparent 3px,transparent 6px);
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+}
+.cat-doing .tape{background-color:var(--doing-tape)}
+.cat-todo  .tape{background-color:var(--todo-tape)}
+.cat-later .tape{background-color:var(--later-tape)}
+.cat-done  .tape{background-color:rgba(180,170,155,.6)}
+
+.card-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.card-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
+.cat-doing .card-icon{background:var(--doing-bg)}
+.cat-todo  .card-icon{background:var(--todo-bg)}
+.cat-later .card-icon{background:var(--later-bg)}
+.cat-done  .card-icon{background:var(--done-bg)}
+.card-meta{flex:1}
+.card-cat{font-size:.67rem;font-weight:700;letter-spacing:.4px}
+.cat-doing .card-cat{color:var(--doing)}
+.cat-todo  .card-cat{color:var(--todo)}
+.cat-later .card-cat{color:var(--later)}
+.cat-done  .card-cat{color:var(--done)}
+.card-date{font-size:.6rem;color:var(--tx3);margin-top:1px}
+.card-del{width:26px;height:26px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--tx3);font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.card-del:active{background:rgba(200,80,80,.1);color:#b03030}
+
+.card-body{font-size:.9rem;font-weight:500;color:var(--tx);line-height:1.55;word-break:break-word}
+.cat-done .card-body{text-decoration:line-through;color:var(--tx3)}
+
+.card-foot{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid var(--border)}
+.act{
+  display:flex;align-items:center;gap:3px;
+  padding:4px 10px;border-radius:14px;
+  border:1px solid var(--border);background:var(--bg);
+  color:var(--tx3);font-size:.7rem;font-weight:500;
+  cursor:pointer;font-family:inherit;
+}
+.act:active{background:var(--surface)}
+.act.done-btn{color:#b03030}
+.act.done-btn:active{background:#fdecea}
+
+/* ドラッグ中 */
+.card.dragging{opacity:.25;cursor:grabbing}
+
+/* 剥がすアニメ */
+@keyframes peel{
+  0%{transform:translateY(0) rotate(0) scale(1);opacity:1}
+  40%{transform:translateY(-8px) rotate(3deg) scale(1.04)}
+  100%{transform:translateY(-60px) rotate(10deg) scale(.6);opacity:0}
+}
+.peeling{animation:peel .35s ease-in forwards;pointer-events:none}
+
+/* ドロップゾーン */
+#drop-overlay{display:none;position:fixed;inset:0;z-index:200;pointer-events:none}
+#drop-overlay.show{display:block;pointer-events:all}
+.dz{
+  position:absolute;top:0;left:0;right:0;
+  height:106px;display:flex;
+}
+.dz-tab{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;
+  padding-bottom:5px;font-size:.62rem;font-weight:700;
+  border-bottom:3px solid transparent;color:var(--tx3);
+  transition:background .1s,border-color .1s,color .1s;
+}
+.dz-tab.on[data-t="doing"]{background:rgba(61,122,82,.14);border-color:var(--doing);color:var(--doing)}
+.dz-tab.on[data-t="todo"] {background:rgba(48,88,160,.14);border-color:var(--todo);color:var(--todo)}
+.dz-tab.on[data-t="later"]{background:rgba(160,88,40,.14);border-color:var(--later);color:var(--later)}
+.dz-tab.on[data-t="done"] {background:rgba(122,114,104,.14);border-color:var(--done);color:var(--done)}
+
+/* フローティングカード */
+#fc{position:fixed;z-index:9999;pointer-events:none;opacity:0;max-width:320px;min-width:200px}
+
+/* 空メッセージ */
+.empty{text-align:center;padding:44px 20px;font-size:.85rem;color:var(--tx3);line-height:2}
+.empty .ei{display:block;font-size:1.8rem;margin-bottom:6px;opacity:.5}
+
+/* モーダル */
+.overlay{
+  position:fixed;inset:0;background:rgba(40,30,20,.45);
+  backdrop-filter:blur(4px);
+  display:flex;align-items:flex-end;justify-content:center;
+  z-index:300;
+}
+.sheet{
+  background:var(--surface);border-radius:20px 20px 0 0;
+  padding:22px 20px calc(24px + var(--safe-b));
+  width:100%;max-width:480px;
+  box-shadow:0 -8px 40px rgba(40,30,20,.18);
+  animation:slide-up .26s cubic-bezier(.34,1.2,.64,1);
+}
+@keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.handle{width:34px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 16px}
+.sheet-title{font-size:1rem;font-weight:700;color:var(--tx);margin-bottom:14px}
+.lbl{display:block;font-size:.67rem;font-weight:700;color:var(--tx3);letter-spacing:1px;margin-bottom:7px}
+.cat-row{display:flex;gap:7px;margin-bottom:14px}
+.cc{
+  flex:1;padding:9px 4px;border-radius:10px;
+  border:2px solid var(--border);background:var(--bg);
+  cursor:pointer;text-align:center;font-family:inherit;
+}
+.cc .ci{display:block;font-size:.95rem;margin-bottom:2px}
+.cc .cl{font-size:.6rem;font-weight:700;color:var(--tx3)}
+.cc.s-doing{border-color:var(--doing);background:var(--doing-bg)}
+.cc.s-doing .cl{color:var(--doing)}
+.cc.s-todo{border-color:var(--todo);background:var(--todo-bg)}
+.cc.s-todo .cl{color:var(--todo)}
+.cc.s-later{border-color:var(--later);background:var(--later-bg)}
+.cc.s-later .cl{color:var(--later)}
+textarea{
+  width:100%;height:84px;background:var(--bg);
+  border:1.5px solid var(--border);border-radius:10px;
+  color:var(--tx);font-family:inherit;font-size:.88rem;
+  padding:11px 13px;resize:none;outline:none;line-height:1.55;
+}
+textarea:focus{border-color:var(--doing);box-shadow:0 0 0 3px rgba(61,122,82,.12)}
+textarea::placeholder{color:var(--tx3);opacity:.7}
+.btns{display:flex;gap:8px;margin-top:12px}
+.btn-c{padding:10px 14px;background:transparent;border:1.5px solid var(--border);border-radius:10px;color:var(--tx3);cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:500}
+.btn-ok{flex:1;padding:10px;background:var(--doing);color:var(--white);border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:.84rem;font-weight:700;box-shadow:0 3px 10px rgba(61,122,82,.3)}
+.btn-ok:active{opacity:.85}
+
+/* トースト */
+.toast{
+  position:fixed;bottom:calc(24px + var(--safe-b));left:50%;
+  transform:translateX(-50%) translateY(12px);
+  background:var(--tx);color:var(--white);font-size:.76rem;font-weight:500;
+  padding:9px 20px;border-radius:99px;
+  box-shadow:0 4px 16px rgba(0,0,0,.2);
+  opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;white-space:nowrap;z-index:400;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🌿</div>
+    <div>
+      <span class="logo-title">Task Tree</span>
+      <span class="logo-sub">タスクを育てよう</span>
+    </div>
+  </div>
+  <button class="add-btn" onclick="openModal()">＋ 追加</button>
+</header>
+
+<div id="ios-banner">
+  <div class="ib-text">
+    <span class="ib-title">📲 ホーム画面に追加する方法</span>
+    <span class="ib-sub">Safariの共有ボタン(↑) →「ホーム画面に追加」</span>
+  </div>
+  <button class="ib-close" onclick="closeBanner()">✕</button>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab t-doing active" data-tab="doing" onclick="switchTab('doing')">🌿 進行中<span class="badge" id="b-doing">0</span></div>
+  <div class="tab t-todo"         data-tab="todo"  onclick="switchTab('todo')">📋 予定<span class="badge" id="b-todo">0</span></div>
+  <div class="tab t-later"        data-tab="later" onclick="switchTab('later')">🍂 後で<span class="badge" id="b-later">0</span></div>
+  <div class="tab t-done"         data-tab="done"  onclick="switchTab('done')">✅ 完了<span class="badge" id="b-done">0</span></div>
+</div>
+
+<div class="pages">
+  <div class="page active" id="p-doing"></div>
+  <div class="page" id="p-todo"></div>
+  <div class="page" id="p-later"></div>
+  <div class="page" id="p-done"></div>
+</div>
+
+<div id="drop-overlay">
+  <div class="dz">
+    <div class="dz-tab" data-t="doing"><span>🌿</span>進行中</div>
+    <div class="dz-tab" data-t="todo"><span>📋</span>予定</div>
+    <div class="dz-tab" data-t="later"><span>🍂</span>後で</div>
+    <div class="dz-tab" data-t="done"><span>✅</span>完了</div>
+  </div>
+</div>
+
+<div id="fc"></div>
+
+<div class="overlay" id="modal" style="display:none" onclick="bgClose(event)">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">🌱 新しいタスク</div>
+    <label class="lbl">カテゴリー</label>
+    <div class="cat-row">
+      <div class="cc s-doing" data-c="doing" onclick="pickCat(this)"><span class="ci">🌿</span><span class="cl">進行中</span></div>
+      <div class="cc" data-c="todo"  onclick="pickCat(this)"><span class="ci">📋</span><span class="cl">予定</span></div>
+      <div class="cc" data-c="later" onclick="pickCat(this)"><span class="ci">🍂</span><span class="cl">後で</span></div>
+    </div>
+    <label class="lbl" for="ti">タスク内容</label>
+    <textarea id="ti" placeholder="何をやる？" maxlength="300"></textarea>
+    <div class="btns">
+      <button class="btn-c" onclick="closeModal()">キャンセル</button>
+      <button class="btn-ok" onclick="addTask()">🌱 追加する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CATS = {
+  doing:{label:'進行中',icon:'🌿'},
+  todo:{label:'取り組み予定',icon:'📋'},
+  later:{label:'後でやる',icon:'🍂'},
+  done:{label:'完了',icon:'✅'}
+};
+
+let tasks = load() || [
+  {id:1,text:'デザインレビューを完了させる',cat:'doing',date:today()},
+  {id:2,text:'ミーティングの準備\n資料とアジェンダを揃えておく',cat:'doing',date:today()},
+  {id:3,text:'新機能の仕様書まとめ',cat:'todo',date:today()},
+  {id:4,text:'競合調査レポート作成',cat:'todo',date:today()},
+  {id:5,text:'コードのリファクタリング',cat:'later',date:today()},
+];
+
+let tab = 'doing', cat = 'doing', drag = null;
+save();
+
+function today(){const d=new Date();return`${d.getMonth()+1}/${d.getDate()}`}
+function load(){try{return JSON.parse(localStorage.getItem('tt5'))}catch{return null}}
+function save(){localStorage.setItem('tt5',JSON.stringify(tasks))}
+
+// ── RENDER ──
+function render(){
+  Object.keys(CATS).forEach(c=>{
+    const list = tasks.filter(t=>t.cat===c);
+    document.getElementById('b-'+c).textContent = list.length;
+    const page = document.getElementById('p-'+c);
+    if(!list.length){
+      page.innerHTML=`<div class="empty"><span class="ei">${CATS[c].icon}</span>タスクがありません<br><small style="opacity:.6">カードをここへドラッグ</small></div>`;
+      return;
+    }
+    page.innerHTML = list.map(t=>{
+      const moves = Object.keys(CATS).filter(x=>x!==t.cat&&x!=='done')
+        .map(x=>`<button class="act" onclick="moveTo(${t.id},'${x}')">${CATS[x].icon} ${CATS[x].label}へ</button>`).join('');
+      const doneBtn = t.cat!=='done' ? `<button class="act done-btn" onclick="tearCard(${t.id})">✂ 完了</button>` : '';
+      return `<div class="card cat-${t.cat}" data-id="${t.id}">
+        <div class="tape"></div>
+        <div class="card-head">
+          <div class="card-icon">${CATS[t.cat].icon}</div>
+          <div class="card-meta">
+            <div class="card-cat">${CATS[t.cat].label}</div>
+            <div class="card-date">${t.date}</div>
+          </div>
+          <button class="card-del" onclick="delCard(${t.id})">🗑</button>
+        </div>
+        <div class="card-body">${esc(t.text)}</div>
+        <div class="card-foot">${moves}${doneBtn}</div>
+      </div>`;
+    }).join('');
+    page.querySelectorAll('.card').forEach(el=>{
+      el.addEventListener('mousedown', e=>startDrag(e,el),{passive:false});
+      el.addEventListener('touchstart',e=>startDrag(e,el),{passive:false});
+    });
+  });
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}
+
+// ── TAB ──
+function switchTab(c){
+  tab=c;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===c));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='p-'+c));
+}
+
+// ── DRAG ──
+function xy(e){return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY}}
+
+function startDrag(e,el){
+  if(e.target.closest('button'))return;
+  const id = +el.dataset.id;
+  const {x,y}=xy(e), r=el.getBoundingClientRect();
+  drag={id,ox:x-r.left,oy:y-r.top,el,moved:false};
+  const fc=document.getElementById('fc');
+  fc.innerHTML=el.outerHTML;
+  fc.style.cssText=`position:fixed;z-index:9999;pointer-events:none;width:${r.width}px;left:${r.left}px;top:${r.top}px;opacity:0;box-shadow:0 16px 40px rgba(60,40,20,.28);border-radius:14px;transform:rotate(-2deg) scale(1.03)`;
+  document.addEventListener('mousemove',onMove,{passive:false});
+  document.addEventListener('mouseup',onEnd);
+  document.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('touchend',onEnd);
+}
+
+function onMove(e){
+  if(!drag)return;
+  e.preventDefault();
+  const {x,y}=xy(e);
+  if(!drag.moved){
+    drag.moved=true;
+    drag.el.classList.add('dragging');
+    document.getElementById('fc').style.opacity='1';
+    document.getElementById('drop-overlay').classList.add('show');
+  }
+  const fc=document.getElementById('fc');
+  fc.style.left=(x-drag.ox)+'px';
+  fc.style.top=(y-drag.oy)+'px';
+  document.querySelectorAll('.dz-tab').forEach(dz=>{
+    const r=dz.getBoundingClientRect();
+    dz.classList.toggle('on',x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom);
+  });
+}
+
+function onEnd(e){
+  if(!drag)return;
+  const p=e.changedTouches?{x:e.changedTouches[0].clientX,y:e.changedTouches[0].clientY}:{x:e.clientX,y:e.clientY};
+  let target=null;
+  document.querySelectorAll('.dz-tab').forEach(dz=>{
+    const r=dz.getBoundingClientRect();
+    if(p.x>=r.left&&p.x<=r.right&&p.y>=r.top&&p.y<=r.bottom)target=dz.dataset.t;
+  });
+  drag.el.classList.remove('dragging');
+  document.getElementById('fc').style.opacity='0';
+  document.getElementById('drop-overlay').classList.remove('show');
+  document.querySelectorAll('.dz-tab').forEach(dz=>dz.classList.remove('on'));
+  if(target&&drag.moved){
+    const t=tasks.find(t=>t.id===drag.id);
+    if(t&&t.cat!==target){
+      target==='done'?tearCard(drag.id,true):(()=>{t.cat=target;save();render();switchTab(target);toast(`${CATS[target].icon} 「${CATS[target].label}」へ移動しました`)})();
+    }
+  }
+  ['mousemove','mouseup','touchmove','touchend'].forEach(ev=>document.removeEventListener(ev,ev==='mousemove'||ev==='touchmove'?onMove:onEnd));
+  drag=null;
+}
+
+// ── ACTIONS ──
+function moveTo(id,c){
+  const t=tasks.find(t=>t.id===id);if(!t)return;
+  t.cat=c;save();render();switchTab(c);
+  toast(`${CATS[c].icon} 「${CATS[c].label}」へ移動しました`);
+}
+function tearCard(id,skip){
+  const el=document.querySelector(`[data-id="${id}"]`);
+  const t=tasks.find(t=>t.id===id);if(!t)return;
+  const go=()=>{t.cat='done';save();render();switchTab('done');toast('✅ 完了！お疲れさまでした 🎉')};
+  if(el&&!skip){el.classList.add('peeling');setTimeout(go,350)}else go();
+}
+function delCard(id){
+  const el=document.querySelector(`[data-id="${id}"]`);
+  if(el)el.classList.add('peeling');
+  setTimeout(()=>{tasks=tasks.filter(t=>t.id!==id);save();render();toast('🗑 削除しました')},el?350:0);
+}
+
+// ── MODAL ──
+function openModal(){
+  cat=tab==='done'?'doing':tab;
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('ti').value='';
+  syncCat();
+  setTimeout(()=>document.getElementById('ti').focus(),80);
+}
+function closeModal(){document.getElementById('modal').style.display='none'}
+function bgClose(e){if(e.target.id==='modal')closeModal()}
+function pickCat(el){cat=el.dataset.c;syncCat()}
+function syncCat(){
+  document.querySelectorAll('.cc').forEach(c=>{
+    c.className='cc'+(c.dataset.c===cat?' s-'+cat:'');
+  });
+}
+function addTask(){
+  const text=document.getElementById('ti').value.trim();
+  if(!text)return;
+  tasks.push({id:Date.now(),text,cat,date:today()});
+  save();render();closeModal();switchTab(cat);
+  toast(`🌱 「${CATS[cat].label}」に追加しました`);
+}
+
+// ── TOAST ──
+let tt;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+// ── PWA / iOS バナー ──
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone=window.matchMedia('(display-mode:standalone)').matches||navigator.standalone;
+if(isIOS&&!isStandalone&&!localStorage.getItem('tt_ib')){
+  document.getElementById('ios-banner').classList.add('show');
+}
+function closeBanner(){
+  document.getElementById('ios-banner').classList.remove('show');
+  localStorage.setItem('tt_ib','1');
+}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeModal();
+  if(e.key==='n'&&!e.target.matches('textarea,input,button'))openModal();
+});
+
+render();
+</script>
+</body>
+</html>
